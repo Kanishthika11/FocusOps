@@ -68,11 +68,13 @@ export default function InteractiveDashboard() {
           if (health) {
             setBackendConnected(true);
             setGoogleConnected(health.googleConnected);
-            setConnectedSources(prev => ({
-              ...prev,
+            setConnectedSources({
               gmail: health.googleConnected,
-              calendar: health.googleConnected
-            }));
+              calendar: health.googleConnected,
+              slack: health.slackConnected,
+              jira: health.jiraConnected,
+              github: health.githubConnected
+            });
           }
         } else {
           setBackendConnected(false);

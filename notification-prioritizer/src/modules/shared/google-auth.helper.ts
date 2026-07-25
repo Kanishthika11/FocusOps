@@ -60,8 +60,18 @@ export class GoogleAuthHelper {
 
       // Health check endpoint
       if (url.pathname === '/api/health') {
+        const slackConnected = !!process.env.SLACK_USER_TOKEN;
+        const jiraConnected = !!(process.env.JIRA_DOMAIN && process.env.JIRA_EMAIL && process.env.JIRA_API_TOKEN);
+        const githubConnected = !!process.env.GITHUB_TOKEN;
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'ok', googleConnected: fs.existsSync(TOKENS_PATH) }));
+        res.end(JSON.stringify({ 
+          status: 'ok', 
+          googleConnected: fs.existsSync(TOKENS_PATH),
+          slackConnected,
+          jiraConnected,
+          githubConnected
+        }));
         return;
       }
 
