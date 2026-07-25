@@ -166,7 +166,9 @@ Return a JSON object containing a "prioritized" array where each item correspond
       } else if (notif.source === 'pagerduty') {
         tier = 'urgent_now';
         reason = 'PagerDuty incident requires immediate action.';
-      } else if (notif.source === 'github' && notif.rawMetadata?.reason === 'ci_failure' && notif.rawMetadata?.branch === 'main') {
+      } else if (notif.source === 'github' && 
+                 (notif.rawMetadata?.reason === 'ci_failure' || notif.rawMetadata?.reason === 'ci_activity') && 
+                 notif.title.toLowerCase().includes('failed')) {
         tier = 'urgent_now';
         reason = 'Production build / CI failure on the main branch.';
       } else if (isKeyCollaborator && textMatchesActiveProject) {

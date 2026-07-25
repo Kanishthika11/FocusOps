@@ -42,9 +42,9 @@ export class GithubTools {
     }
 
     try {
-      let url = 'https://api.github.com/notifications?participating=true';
+      let url = 'https://api.github.com/notifications';
       if (input.since) {
-        url += `&since=${encodeURIComponent(input.since)}`;
+        url += `?since=${encodeURIComponent(input.since)}`;
       }
 
       const res = await fetch(url, {
