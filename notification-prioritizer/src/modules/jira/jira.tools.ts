@@ -64,7 +64,7 @@ export class JiraTools {
       
       // Fetch issues assigned to me, watcher of, or recently updated
       const jql = encodeURIComponent('assignee = currentUser() OR watcher = currentUser() order by updated desc');
-      const searchUrl = `https://${domain}/rest/api/3/search/jql?jql=${jql}&maxResults=10&fields=summary,description,assignee,updated,status,creator,priority`;
+      const searchUrl = `https://${domain}/rest/api/3/search/jql?jql=${jql}&maxResults=10&fields=summary,description,assignee,updated,status,creator,priority,duedate`;
       
       const searchRes = await fetch(searchUrl, {
         headers: { 
@@ -114,7 +114,8 @@ export class JiraTools {
             rawMetadata: {
               issueKey: issue.key,
               priority: fields.priority?.name,
-              status: fields.status?.name
+              status: fields.status?.name,
+              dueDate: fields.duedate
             }
           });
         }

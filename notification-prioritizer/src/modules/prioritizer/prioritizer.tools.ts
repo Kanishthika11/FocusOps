@@ -187,8 +187,15 @@ Return a JSON object containing a "prioritized" array where each item correspond
             reason = 'Public channel update (no direct mention).';
           }
         } else if (notif.source === 'jira') {
-          tier = 'normal';
-          reason = `Jira updates for task assigned to you.`;
+          const dueDate = notif.rawMetadata?.dueDate;
+          const isDueToday = dueDate && new Date(dueDate).toDateString() === new Date().toDateString();
+          if (isDueToday) {
+            tier = 'urgent_now';
+            reason = `Assigned Jira task "${notif.title.replace('[Jira] ', '')}" is due today!`;
+          } else {
+            tier = 'normal';
+            reason = `Jira updates for task assigned to you.`;
+          }
         } else if (notif.source === 'github') {
           if (notif.rawMetadata?.reason === 'review_request') {
             tier = 'normal';
