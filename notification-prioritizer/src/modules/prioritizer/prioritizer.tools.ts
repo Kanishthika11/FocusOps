@@ -1,5 +1,6 @@
 import { ToolDecorator as Tool, Widget, ExecutionContext, z } from '@nitrostack/core';
 import { Notification } from '../shared/notification.types.js';
+import { queryLLM } from '../shared/llm.helper.js';
 
 const NotificationSchema = z.object({
   id: z.string(),
@@ -35,10 +36,17 @@ export class PrioritizerTools {
 
     const notifications: Notification[] = input.notifications;
     const userContext = input.context;
-    const apiKey = process.env.GEMINI_API_KEY;
+    
+    const provider = (process.env.LLM_PROVIDER || 'gemini').toLowerCase();
+    let hasKey = false;
+    if (provider === 'gemini') {
+      hasKey = !!process.env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY.startsWith('AQ.your-');
+    } else {
+      hasKey = !!(process.env.LLM_API_KEY || process.env.XAI_API_KEY || process.env.OPENAI_API_KEY);
+    }
 
-    if (!apiKey || apiKey.startsWith('AIzaSy-your-')) {
-      ctx.logger.info('Gemini API key not found, using rule-based fallback prioritizer');
+    if (!hasKey) {
+      ctx.logger.info('LLM API credentials not found, using rule-based fallback prioritizer');
       return this.prioritizeWithRules(notifications, userContext);
     }
 
@@ -81,31 +89,13 @@ Return a JSON object containing a "prioritized" array where each item correspond
 }
 `;
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              responseMimeType: 'application/json'
-            }
-          })
-        }
+      const responseText = await queryLLM(
+        "You are a notification prioritization API that must output raw, valid JSON matching the schema provided. Do not wrap in markdown or backticks.",
+        prompt
       );
 
-      if (!response.ok) {
-        throw new Error(`Gemini API request failed: ${await response.text()}`);
-      }
-
-      const resData = await response.json() as any;
-      const responseText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!responseText) {
-        throw new Error('Gemini API returned an empty response');
-      }
-
-      const parsed = JSON.parse(responseText.trim());
+      const cleanedJson = responseText.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(cleanedJson);
       const mapping = new Map<string, { tier: 'urgent_now' | 'normal' | 'fyi_only'; reason: string }>();
       
       for (const item of parsed.prioritized || []) {

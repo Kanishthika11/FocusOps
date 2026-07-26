@@ -168,13 +168,40 @@ export default function InteractiveDashboard() {
   };
 
   // Agent Chat Logic
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
 
-    const userText = chatInput.trim().toLowerCase();
-    const updatedHistory = [...chatHistory, { sender: 'user' as const, text: chatInput }];
+    const userMsg = chatInput.trim();
+    const userText = userMsg.toLowerCase();
+    const updatedHistory = [...chatHistory, { sender: 'user' as const, text: userMsg }];
+    
+    // Add temporary loading indicator for response
+    setChatHistory([...updatedHistory, { sender: 'agent' as const, text: 'Thinking...' }]);
     setChatInput('');
 
+    try {
+      const chatRes = await fetch('http://localhost:3000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userMsg,
+          notifications,
+          history: chatHistory.slice(-5) // Pass last 5 history messages for contextual reply
+        })
+      });
+
+      if (chatRes.ok) {
+        const result = await chatRes.json();
+        if (result && result.text) {
+          setChatHistory([...updatedHistory, { sender: 'agent' as const, text: result.text }]);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Chat endpoint unreachable. Falling back to local rules.', err);
+    }
+
+    // Graceful fallback to rule-based agent replies
     let agentResponse = "I analyzed your current feed but didn't find specific matches. Try asking 'What's urgent?', 'Summarize Slack', or 'Show GitHub'.";
 
     if (userText.includes('urgent') || userText.includes('important')) {
@@ -193,15 +220,17 @@ export default function InteractiveDashboard() {
       const ghList = notifications.filter(n => n.source === 'github');
       agentResponse = `GitHub status: You have ${ghList.length} items. \n` + 
         ghList.map(n => `• ${n.sender} - ${n.title} (${n.reason})`).join('\n');
+    } else if (userText.includes('jira') || userText.includes('ticket') || userText.includes('task')) {
+      const jiraList = notifications.filter(n => n.source === 'jira');
+      agentResponse = `Jira status: You have ${jiraList.length} tickets. \n` + 
+        jiraList.map(n => `• ${n.title} (Status: ${n.rawMetadata?.status || 'Open'})`).join('\n');
     } else if (userText.includes('gmail') || userText.includes('email') || userText.includes('account')) {
-      const workMails = notifications.filter(n => n.accountId === 'gmail_work');
-      const personalMails = notifications.filter(n => n.accountId === 'gmail_personal');
-      agentResponse = `Email check:\n` +
-        `• Work account (jane@company.com): ${workMails.length} unread.\n` +
-        `• Personal account (jane.personal@gmail.com): ${personalMails.length} unread (triaged to FYI).`;
+      const gmailList = notifications.filter(n => n.source === 'gmail');
+      agentResponse = `Gmail inbox: You have ${gmailList.length} unread emails. \n` + 
+        gmailList.slice(0, 3).map(n => `• ${n.sender}: "${n.title}"`).join('\n');
     }
 
-    setChatHistory([...updatedHistory, { sender: 'agent', text: agentResponse }]);
+    setChatHistory([...updatedHistory, { sender: 'agent' as const, text: agentResponse }]);
   };
 
   const handleToggleConnection = (source: string) => {
