@@ -8,7 +8,8 @@ import {
   Mail, Calendar, MessageSquare, GitBranch, Ticket,
   AlertTriangle, Lightbulb, Bot, RefreshCw, ExternalLink,
   ChevronRight, Inbox, Info, CheckCircle2, Clock,
-  AlarmClock, Send
+  AlarmClock, Send, Terminal, BarChart2, PlayCircle, Filter, Check,
+  Sparkles, ArrowRight
 } from 'lucide-react';
 
 interface NotificationItem {
@@ -22,6 +23,12 @@ interface NotificationItem {
 }
 interface PrioritizerOutput { prioritized: NotificationItem[]; }
 interface ChatMessage { sender: 'user' | 'agent'; text: string; }
+interface TraceLog {
+  timestamp: string;
+  tool: string;
+  summary: string;
+  duration?: number;
+}
 
 const SOURCE_META: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
   slack:     { icon: <MessageSquare size={13} />, color: '#0891b2', label: 'Slack' },
@@ -53,7 +60,7 @@ export default function InteractiveDashboard() {
   const [isDark, setIsDark] = useState(theme === 'dark');
   useEffect(() => { setIsDark(theme === 'dark'); }, [theme]);
 
-  const [view, setView] = useState<'landing' | 'dashboard'>('landing');
+  const [view, setView] = useState<'landing' | 'dashboard' | 'agent_console' | 'insights'>('landing');
   const [activeFilter, setActiveFilter] = useState<'all' | 'urgent_now' | 'normal' | 'fyi_only'>('all');
   const [selectedItem, setSelectedItem] = useState<NotificationItem | null>(null);
   const [chatInput, setChatInput] = useState('');
@@ -69,6 +76,14 @@ export default function InteractiveDashboard() {
   const [googleConnected, setGoogleConnected] = useState(false);
   const [connectedSources, setConnectedSources] = useState<Record<string, boolean>>({
     gmail: false, slack: false, jira: false, github: false, calendar: false
+  });
+
+  const [toolTraces, setToolTraces] = useState<TraceLog[]>([]);
+
+  // Channel filter popover state
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [channelFilters, setChannelFilters] = useState<Record<string, boolean>>({
+    gmail: true, slack: true, jira: true, github: true, calendar: true
   });
 
   // Auto-scroll chat to bottom smoothly
@@ -99,7 +114,11 @@ export default function InteractiveDashboard() {
       if (res.ok) {
         const result = await res.json();
         const prioritized = result.prioritized || [];
+        const traces = result.traces || [];
         setLiveNotifications(prioritized);
+        if (traces.length > 0) {
+          setToolTraces(prev => [...prev, ...traces]);
+        }
         const sources = prioritized.map((p: any) => p.source);
         setConnectedSources(prev => ({
           ...prev,
@@ -114,11 +133,46 @@ export default function InteractiveDashboard() {
   useEffect(() => { if (backendConnected) fetchLiveNotifications(); }, [backendConnected]);
 
   const notifications = data?.prioritized?.length ? data.prioritized : liveNotifications;
-  const filtered = notifications.filter(n => activeFilter === 'all' || n.tier === activeFilter);
+
+  // Apply both filters: tab filter and channel filters (AND filter)
+  const filtered = notifications.filter(n => {
+    const matchesTab = activeFilter === 'all' || n.tier === activeFilter;
+    const matchesChannel = channelFilters[n.source] !== false;
+    return matchesTab && matchesChannel;
+  });
+
+  // Badge count for filters: show number of disabled channels
+  const activeFiltersList = Object.keys(channelFilters).filter(k => channelFilters[k]);
+  const activeFiltersCount = activeFiltersList.length;
+  const isFiltering = activeFiltersCount < 5;
+
   const urgentCount = notifications.filter(n => n.tier === 'urgent_now').length;
   const normalCount = notifications.filter(n => n.tier === 'normal').length;
   const fyiCount    = notifications.filter(n => n.tier === 'fyi_only').length;
   const unreadCount = urgentCount + normalCount;
+
+  // Cross-tool correlation logic: match project keywords/terms
+  const getRelatedItems = (item: NotificationItem) => {
+    if (!item) return [];
+    // Extract keywords from title and sender
+    const textToAnalyze = `${item.title} ${item.sender}`.toLowerCase();
+    
+    // Find project names or identifiers (e.g. FOC-123, project-xyz, FocusOps)
+    const keywords = ['focusops', 'database', 'cpu', 'meeting', 'auth', 'google', 'jira', 'slack', 'foc-'];
+    const matchedKeywords = keywords.filter(kw => textToAnalyze.includes(kw));
+
+    if (matchedKeywords.length === 0) {
+      // Split words and grab longest ones
+      const words = textToAnalyze.split(/\s+/).filter(w => w.length > 4 && !['about', 'should', 'welcome', 'priority'].includes(w));
+      matchedKeywords.push(...words.slice(0, 2));
+    }
+
+    return notifications.filter(n => {
+      if (n.id === item.id) return false;
+      const targetText = `${n.title} ${n.sender} ${n.snippet}`.toLowerCase();
+      return matchedKeywords.some(kw => targetText.includes(kw));
+    }).slice(0, 3);
+  };
 
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
@@ -149,6 +203,31 @@ export default function InteractiveDashboard() {
     else if (t.includes('jira'))     { const j = notifications.filter(n => n.source === 'jira');   reply = `Jira: ${j.length} tickets.\n`   + j.map(n => `• ${n.title}`).join('\n'); }
     else if (t.includes('gmail') || t.includes('email')) { const e = notifications.filter(n => n.source === 'gmail'); reply = `Gmail: ${e.length} emails.\n` + e.slice(0, 3).map(n => `• ${n.sender}: "${n.title}"`).join('\n'); }
     setChatHistory([...updatedHistory, { sender: 'agent', text: reply }]);
+  };
+
+  const simulateNotification = () => {
+    const mockNotif: NotificationItem = {
+      id: `sim-${Date.now()}`,
+      source: 'slack',
+      sender: 'Engineering Channel',
+      title: 'URGENT: Production Database CPU at 99%',
+      snippet: 'The primary database is seeing extreme load and queries are timing out.',
+      timestamp: new Date().toISOString(),
+      link: 'https://slack.com',
+      accountId: 'mock-account',
+      accountEmail: 'you@focusops.com',
+      tier: 'urgent_now',
+      reason: 'Matches critical project alert keywords'
+    };
+    
+    const newTraces: TraceLog[] = [
+      { timestamp: new Date().toLocaleTimeString(), tool: 'SimulatedTrigger', summary: 'Mock Slack alert received', duration: 0 },
+      { timestamp: new Date().toLocaleTimeString(), tool: 'buildUserContext', summary: 'Context extracted', duration: 12 },
+      { timestamp: new Date().toLocaleTimeString(), tool: 'prioritizeNotifications', summary: '1 item triaged & tiered (urgent_now)', duration: 435 }
+    ];
+
+    setToolTraces(prev => [...prev, ...newTraces]);
+    setLiveNotifications(prev => [mockNotif, ...prev]);
   };
 
   // ─── Design tokens ──────────────────────────────────────────────────────────
@@ -184,7 +263,12 @@ export default function InteractiveDashboard() {
       </button>
 
       <div style={{ display: 'flex', gap: '2px' }}>
-        {([['landing','Home',<Home size={14}/>],['dashboard','Dashboard',<LayoutDashboard size={14}/>]] as [string,string,React.ReactNode][]).map(([v,lbl,icon]) => (
+        {([
+          ['landing','Home',<Home size={14}/>],
+          ['dashboard','Dashboard',<LayoutDashboard size={14}/>],
+          ['agent_console','Agent Console',<Terminal size={14}/>],
+          ['insights','Insights',<BarChart2 size={14}/>]
+        ] as [string,string,React.ReactNode][]).map(([v,lbl,icon]) => (
           <button key={v} onClick={() => setView(v as any)} style={{ display: 'flex', alignItems: 'center', gap: '7px', background: view === v ? D.activeBg : 'transparent', border: 'none', borderRadius: '9px', padding: '7px 15px', color: view === v ? D.accent : D.muted, fontSize: '14px', fontWeight: view === v ? 700 : 500, cursor: 'pointer', transition: 'all 0.15s' }}>
             {icon} {lbl}
           </button>
@@ -269,7 +353,7 @@ export default function InteractiveDashboard() {
               style={{ textAlign: 'center', fontSize: '11px', fontWeight: 800, color: D.muted, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '18px' }}>
               Connected Integrations
             </motion.p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: '14px', marginBottom: '64px' }}>
               {CARDS.map((card, i) => {
                 const isGoogle = card.key === 'gmail' || card.key === 'calendar';
                 const active   = isGoogle ? googleConnected : connectedSources[card.key];
@@ -297,6 +381,217 @@ export default function InteractiveDashboard() {
                 );
               })}
             </div>
+
+            {/* Before / After Comparison */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px', margin: '48px 0 64px' }}>
+              <div style={{ background: D.surface, border: `1px solid ${D.border}`, borderRadius: '20px', padding: '28px', opacity: 0.65, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 800, color: D.muted }}>Unsorted Inbox (Raw Noise)</span>
+                  <span style={{ fontSize: '12px', background: 'rgba(0,0,0,0.1)', padding: '4px 10px', borderRadius: '99px', fontWeight: 700 }}>23 alerts</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {['Slack update: Hey team just wanted to check...', 'GitHub alert: Push on master branch...', 'Gmail: Weekly newsletter of dev updates...', 'Jira: FOC-12 modified by manager...'].map((txt, index) => (
+                    <div key={index} style={{ border: `1px solid ${D.border}`, padding: '12px', borderRadius: '10px', fontSize: '12px', color: D.muted }}>{txt}</div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ background: D.surface, border: `2px solid ${D.accent}55`, borderRadius: '20px', padding: '28px', boxShadow: D.shadow }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 800, color: D.accent, display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={14}/> FocusOps Triage (Actionable)</span>
+                  <span style={{ fontSize: '12px', background: D.accent + '22', color: D.accent, padding: '4px 10px', borderRadius: '99px', fontWeight: 700 }}>2 urgent</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ border: `1.5px solid #ef444455`, padding: '12px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.05)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#ef4444', fontWeight: 700, marginBottom: '4px' }}><span>🔴 Urgent Now</span><span>Google Calendar</span></div>
+                    <div style={{ fontSize: '13px', fontWeight: 800 }}>Project Sync in 15 mins</div>
+                  </div>
+                  <div style={{ border: `1.5px solid #ef444455`, padding: '12px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.05)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#ef4444', fontWeight: 700, marginBottom: '4px' }}><span>🔴 Urgent Now</span><span>Jira Ticket</span></div>
+                    <div style={{ fontSize: '13px', fontWeight: 800 }}>FOC-105: Fix auth token leak (Due today)</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* How it Works - Powered by MCP */}
+            <div style={{ textAlign: 'center', marginTop: '64px' }}>
+              <h2 style={{ fontSize: '28px', fontWeight: 900, marginBottom: '32px' }}>How it Works — Powered by MCP</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+                {[
+                  { step: '1', title: 'Connect Tools', desc: 'Securely authenticate Gmail, Slack, Jira, GitHub & Calendar via MCP protocols.' },
+                  { step: '2', title: 'Fetch Alerts', desc: 'The local MCP server reaches out to individual channel API tools simultaneously.' },
+                  { step: '3', title: 'Context Reasoning', desc: 'Context tools extract active project scope and calendar windows for triage logic.' },
+                  { step: '4', title: 'Prioritize & Deliver', desc: 'Gemini groups and tags notifications contextually, showing only what requires action.' }
+                ].map((s, idx) => (
+                  <div key={idx} style={{ background: D.surface, border: `1px solid ${D.border}`, borderRadius: '16px', padding: '24px', textAlign: 'left', position: 'relative', boxShadow: D.shadow }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: D.grad, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '14px', marginBottom: '14px' }}>{s.step}</div>
+                    <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '8px' }}>{s.title}</h3>
+                    <p style={{ fontSize: '13px', color: D.muted, lineHeight: 1.5, margin: 0 }}>{s.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AGENT CONSOLE
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (view === 'agent_console') {
+    return (
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: D.heroBg, fontFamily: font, color: D.text, overflow: 'hidden' }}>
+        <NavBar />
+        <OfflineBanner />
+        
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', overflow: 'hidden', padding: '24px', boxSizing: 'border-box' }}>
+          <div style={{ flex: 1, maxWidth: '1200px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h1 style={{ fontSize: '24px', fontWeight: 900, margin: '0 0 5px' }}>Agent Console</h1>
+                <p style={{ fontSize: '13px', color: D.muted, margin: 0 }}>Live MCP tool-call trace feed for automation polling</p>
+              </div>
+              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={simulateNotification}
+                style={{ background: D.grad, color: 'white', border: 'none', borderRadius: '10px', padding: '10px 20px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '7px', boxShadow: '0 4px 14px rgba(8,145,178,0.35)' }}>
+                <PlayCircle size={15}/> Simulate Notification
+              </motion.button>
+            </div>
+
+            <div style={{ flex: 1, background: '#0a0a0a', border: '1px solid #262626', borderRadius: '12px', padding: '16px', overflowY: 'auto', fontFamily: 'monospace', boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)' }}>
+              {toolTraces.length === 0 ? (
+                <div style={{ color: '#525252', textAlign: 'center', padding: '40px 0', fontSize: '14px' }}>
+                  <Terminal size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
+                  Waiting for tool calls...<br/>Click "Simulate Notification" to test or wait for polling.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {toolTraces.map((trace, i) => (
+                    <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                      style={{ fontSize: '13px', color: '#a3a3a3', display: 'flex', alignItems: 'flex-start', gap: '12px', borderBottom: '1px solid #171717', paddingBottom: '8px' }}>
+                      <span style={{ color: '#525252', whiteSpace: 'nowrap' }}>[{trace.timestamp}]</span>
+                      <span style={{ color: '#38bdf8', fontWeight: 700, minWidth: '180px' }}>{trace.tool}()</span>
+                      <span style={{ color: '#e5e5e5', flex: 1 }}>{trace.summary}</span>
+                      {trace.duration !== undefined && <span style={{ color: '#fbbf24' }}>{trace.duration}ms</span>}
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // INSIGHTS VIEW
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (view === 'insights') {
+    // Basic stats math
+    const totalCount = notifications.length;
+    const slackCount = notifications.filter(n => n.source === 'slack').length;
+    const jiraCount = notifications.filter(n => n.source === 'jira').length;
+    const gmailCount = notifications.filter(n => n.source === 'gmail').length;
+    const calCount = notifications.filter(n => n.source === 'calendar').length;
+    const ghCount = notifications.filter(n => n.source === 'github').length;
+
+    // Time to triage mock / static calculation
+    const avgTriageTime = "2.4 mins";
+    const todayCount = notifications.filter(n => {
+      try {
+        const date = new Date(n.timestamp);
+        return date.toDateString() === new Date().toDateString();
+      } catch {
+        return true;
+      }
+    }).length;
+
+    return (
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: D.heroBg, fontFamily: font, color: D.text, overflow: 'hidden' }}>
+        <NavBar />
+        <OfflineBanner />
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
+            <div>
+              <h1 style={{ fontSize: '28px', fontWeight: 900, margin: '0 0 5px' }}>Insights & Analytics</h1>
+              <p style={{ fontSize: '14px', color: D.muted, margin: 0 }}>Understand notification trends and prioritize your focus time.</p>
+            </div>
+
+            {/* Core Statistics row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+              {[
+                { title: 'Total Triaged Tasks', value: totalCount, icon: <Inbox size={20}/>, desc: 'Across all integrations' },
+                { title: 'Urgent Blocks', value: urgentCount, icon: <AlertTriangle size={20}/>, desc: 'Requires immediate action', color: '#ef4444' },
+                { title: 'Time to Triage', value: avgTriageTime, icon: <Zap size={20}/>, desc: 'AI-assisted prioritizer avg' },
+                { title: 'Processed Today', value: todayCount, icon: <CheckCircle2 size={20}/>, desc: 'Updates parsed today' }
+              ].map((stat, i) => (
+                <div key={i} style={{ background: D.surface, border: `1px solid ${D.border}`, borderRadius: '16px', padding: '24px', boxShadow: D.shadow, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: stat.color || D.accent }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: D.muted }}>{stat.title}</span>
+                    {stat.icon}
+                  </div>
+                  <div style={{ fontSize: '32px', fontWeight: 900 }}>{stat.value}</div>
+                  <span style={{ fontSize: '12px', color: D.muted }}>{stat.desc}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Tier breakdown cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
+              
+              {/* Tiers Distribution */}
+              <div style={{ background: D.surface, border: `1px solid ${D.border}`, borderRadius: '16px', padding: '24px', boxShadow: D.shadow }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '20px' }}>Priority Tier Breakdown</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {[
+                    { label: 'Urgent Now', count: urgentCount, percentage: totalCount ? (urgentCount/totalCount)*100 : 0, color: '#ef4444' },
+                    { label: 'Normal Priority', count: normalCount, percentage: totalCount ? (normalCount/totalCount)*100 : 0, color: '#f59e0b' },
+                    { label: 'FYI Only', count: fyiCount, percentage: totalCount ? (fyiCount/totalCount)*100 : 0, color: '#22c55e' }
+                  ].map((tier, i) => (
+                    <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 700 }}>
+                        <span>{tier.label}</span>
+                        <span>{tier.count} ({Math.round(tier.percentage)}%)</span>
+                      </div>
+                      <div style={{ height: '8px', background: isDark ? '#1e293b' : '#e2e8f0', borderRadius: '99px', overflow: 'hidden' }}>
+                        <div style={{ width: `${tier.percentage}%`, height: '100%', background: tier.color, borderRadius: '99px' }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Channels Distribution */}
+              <div style={{ background: D.surface, border: `1px solid ${D.border}`, borderRadius: '16px', padding: '24px', boxShadow: D.shadow }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '20px' }}>Active Integration Channels</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {[
+                    { label: 'Slack Messages', count: slackCount, color: '#0891b2' },
+                    { label: 'Jira Tickets', count: jiraCount, color: '#0369a1' },
+                    { label: 'Emails', count: gmailCount, color: '#dc2626' },
+                    { label: 'Calendar Events', count: calCount, color: '#0284c7' },
+                    { label: 'GitHub Updates', count: ghCount, color: '#374151' }
+                  ].map((ch, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', borderBottom: `1px solid ${D.border}`, paddingBottom: '8px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: ch.color }} />
+                        {ch.label}
+                      </span>
+                      <span style={{ fontWeight: 800 }}>{ch.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
           </div>
         </div>
       </div>
@@ -305,10 +600,6 @@ export default function InteractiveDashboard() {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // DASHBOARD
-  // Layout Strategy:
-  // Root = 100vh flex-col. Header = fixed height.
-  // Body = flex-1 row. Left = scrollable flex-item, Center = scrollable flex-item, Right = scrollable flex-item.
-  // This guarantees columns NEVER overlap and always fit the device height.
   // ═══════════════════════════════════════════════════════════════════════════
   const tierLabelMap: Record<string, string> = {
     all: 'All Triaged Tasks', urgent_now: 'Urgent Now', normal: 'Normal Priority', fyi_only: 'FYI Only'
@@ -373,18 +664,76 @@ export default function InteractiveDashboard() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
               <div>
                 <h1 style={{ fontSize: '24px', fontWeight: 900, margin: '0 0 5px', letterSpacing: '-0.5px', background: D.gradText, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Priority Workspace</h1>
-                <p style={{ fontSize: '13px', color: D.muted, margin: 0 }}>Contextual triage feed — {notifications.length} total notifications</p>
+                <p style={{ fontSize: '13px', color: D.muted, margin: 0 }}>
+                  Contextual triage feed — {notifications.length} total notifications
+                </p>
               </div>
-              {backendConnected && (
-                <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                  onClick={fetchLiveNotifications} disabled={isLoading}
-                  style={{ background: isLoading ? '#475569' : D.grad, color: 'white', border: 'none', borderRadius: '10px', padding: '10px 20px', fontSize: '13px', fontWeight: 700, cursor: isLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '7px', boxShadow: '0 4px 14px rgba(8,145,178,0.35)' }}>
-                  <RefreshCw size={14}/> {isLoading ? 'Syncing…' : 'Refresh'}
-                </motion.button>
-              )}
+
+              {/* Action Buttons Row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+                
+                {/* Channel Filter Trigger */}
+                <button onClick={() => setFilterOpen(o => !o)}
+                  style={{ background: isFiltering ? D.accent + '22' : 'transparent', border: `1px solid ${isFiltering ? D.accent : D.border}`, color: isFiltering ? D.accent : D.muted, padding: '10px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '7px', transition: 'all 0.15s' }}>
+                  <Filter size={14}/> 
+                  Filter
+                  {isFiltering && (
+                    <span style={{ fontSize: '10px', background: D.accent, color: 'white', width: '16px', height: '16px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {activeFiltersCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Filter Popover Dropdown */}
+                {filterOpen && (
+                  <>
+                    {/* Click-outside backdrop */}
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 19 }} onClick={() => setFilterOpen(false)} />
+                    
+                    <div style={{ position: 'absolute', top: '100%', right: '110px', marginTop: '8px', background: D.surface, border: `1px solid ${D.border}`, borderRadius: '12px', padding: '12px', width: '160px', boxShadow: D.shadow, display: 'flex', flexDirection: 'column', gap: '8px', zIndex: 20 }}>
+                      <p style={{ fontSize: '10px', fontWeight: 800, color: D.muted, textTransform: 'uppercase', margin: '0 0 4px', letterSpacing: '0.8px' }}>Select Channels</p>
+                      {Object.keys(channelFilters).map((chKey) => {
+                        const meta = getSource(chKey);
+                        const isChecked = channelFilters[chKey] !== false;
+                        return (
+                          <label key={chKey} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', userSelect: 'none' }}>
+                            <input type="checkbox" checked={isChecked}
+                              onChange={() => setChannelFilters(prev => ({ ...prev, [chKey]: !prev[chKey] }))}
+                              style={{ cursor: 'pointer', accentColor: D.accent }}
+                            />
+                            <span style={{ color: meta.color, display: 'flex', alignItems: 'center' }}>{meta.icon}</span>
+                            <span style={{ fontWeight: isChecked ? 600 : 400 }}>{meta.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
+                {backendConnected && (
+                  <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                    onClick={fetchLiveNotifications} disabled={isLoading}
+                    style={{ background: isLoading ? '#475569' : D.grad, color: 'white', border: 'none', borderRadius: '10px', padding: '10px 20px', fontSize: '13px', fontWeight: 700, cursor: isLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '7px', boxShadow: '0 4px 14px rgba(8,145,178,0.35)' }}>
+                    <RefreshCw size={14}/> {isLoading ? 'Syncing…' : 'Refresh'}
+                  </motion.button>
+                )}
+              </div>
             </div>
 
-            <div style={{ fontSize: '13px', fontWeight: 700, color: D.muted, marginBottom: '12px' }}>{tierLabelMap[activeFilter]} ({filtered.length})</div>
+            {/* Combined Filter Display String */}
+            <div style={{ fontSize: '13px', fontWeight: 700, color: D.muted, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>{tierLabelMap[activeFilter]}</span>
+              {isFiltering && (
+                <>
+                  <span style={{ opacity: 0.5 }}>·</span>
+                  <span style={{ color: D.accent }}>
+                    {activeFiltersList.map(k => getSource(k).label).join(', ')} ({filtered.length})
+                  </span>
+                </>
+              )}
+              {!isFiltering && <span>({filtered.length})</span>}
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '24px' }}>
               {filtered.length === 0 ? (
                 <div style={{ background: D.surface, border: `1px solid ${D.border}`, borderRadius: '16px', padding: '60px 24px', textAlign: 'center', color: D.muted }}>
@@ -447,6 +796,34 @@ export default function InteractiveDashboard() {
                     <div style={{ fontSize: '12px', color: D.muted, lineHeight: 1.5, background: isDark ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0.03)', padding: '10px', borderRadius: '8px', border: `1px solid ${D.border}` }}>{selectedItem.snippet}</div>
                   </div>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: D.accent, display: 'flex', alignItems: 'center', gap: '5px' }}><Lightbulb size={12}/> {selectedItem.reason}</div>
+                  
+                  {/* Cross-tool Correlation section */}
+                  {(() => {
+                    const related = getRelatedItems(selectedItem);
+                    if (related.length === 0) return null;
+                    return (
+                      <div style={{ borderTop: `1px solid ${D.border}`, paddingTop: '12px', marginTop: '4px' }}>
+                        <div style={{ fontSize: '10px', color: D.muted, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }}>Related Context</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {related.map(rel => {
+                            const relSrc = getSource(rel.source);
+                            return (
+                              <div key={rel.id} onClick={() => setSelectedItem(rel)}
+                                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', borderRadius: '8px', border: `1px solid ${D.border}`, background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', cursor: 'pointer', transition: 'all 0.15s' }}>
+                                <span style={{ color: relSrc.color }}>{relSrc.icon}</span>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: '11px', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rel.title}</div>
+                                  <div style={{ fontSize: '9px', color: D.muted }}>{rel.sender}</div>
+                                </div>
+                                <ArrowRight size={10} style={{ color: D.muted }}/>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                     onClick={() => window.open(selectedItem.link, '_blank')}
                     style={{ background: D.grad, color: 'white', border: 'none', borderRadius: '9px', padding: '10px 14px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', boxShadow: '0 4px 12px rgba(8,145,178,0.32)' }}>

@@ -110,7 +110,11 @@ export class GoogleAuthHelper {
           const execCtx = { logger: loggerMock } as any;
 
           // 1. Compile Context
+          const t0 = Date.now();
           const contextOutput = await context.buildUserContext({}, execCtx);
+          const t1 = Date.now();
+          const traces = [];
+          traces.push({ timestamp: new Date(t1).toLocaleTimeString(), tool: 'buildUserContext', summary: 'Active projects & schedule extracted', duration: t1 - t0 });
 
           // 2. Fetch notifications in parallel
           const [gmailRes, calRes, slackRes, jiraRes, ghRes] = await Promise.all([
@@ -120,6 +124,13 @@ export class GoogleAuthHelper {
             jira.fetchJiraNotifications({}, execCtx),
             github.fetchGithubNotifications({}, execCtx)
           ]);
+          const t2 = Date.now();
+          
+          traces.push({ timestamp: new Date(t2).toLocaleTimeString(), tool: 'fetchGmailNotifications', summary: `${gmailRes.notifications?.length || 0} emails fetched`, duration: t2 - t1 });
+          traces.push({ timestamp: new Date(t2).toLocaleTimeString(), tool: 'fetchCalendarEvents', summary: `${calRes.notifications?.length || 0} events fetched`, duration: t2 - t1 });
+          traces.push({ timestamp: new Date(t2).toLocaleTimeString(), tool: 'fetchSlackNotifications', summary: `${slackRes.notifications?.length || 0} messages fetched`, duration: t2 - t1 });
+          traces.push({ timestamp: new Date(t2).toLocaleTimeString(), tool: 'fetchJiraNotifications', summary: `${jiraRes.notifications?.length || 0} tickets fetched`, duration: t2 - t1 });
+          traces.push({ timestamp: new Date(t2).toLocaleTimeString(), tool: 'fetchGithubNotifications', summary: `${ghRes.notifications?.length || 0} updates fetched`, duration: t2 - t1 });
 
           const allNotifications = [
             ...(gmailRes.notifications || []),
@@ -130,13 +141,16 @@ export class GoogleAuthHelper {
           ];
 
           // 3. Triage / Prioritize via Gemini LLM
+          const t3 = Date.now();
           const triageResult = await prioritizer.prioritizeNotifications(
             { notifications: allNotifications, context: contextOutput },
             execCtx
           );
+          const t4 = Date.now();
+          traces.push({ timestamp: new Date(t4).toLocaleTimeString(), tool: 'prioritizeNotifications', summary: `${triageResult.prioritized?.length || 0} items triaged & tiered`, duration: t4 - t3 });
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify(triageResult));
+          res.end(JSON.stringify({ ...triageResult, traces }));
         } catch (error: any) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: error.message }));
