@@ -130,6 +130,35 @@ export default function InteractiveDashboard() {
   ]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
+  const slogans = [
+    "Your intelligent AI Agent to triage workspace noise.",
+    "Let Focus Agent AI prioritize your updates automatically.",
+    "Triage the noise and focus on what matters with Focus Agent."
+  ];
+  const [sloganIdx, setSloganIdx] = useState(0);
+  const [displayedSlogan, setDisplayedSlogan] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  useEffect(() => {
+    let timer: any;
+    const fullText = slogans[sloganIdx];
+    const typeSpeed = isDeleting ? 25 : 50;
+    
+    if (!isDeleting && displayedSlogan === fullText) {
+      timer = setTimeout(() => setIsDeleting(true), 3000);
+    } else if (isDeleting && displayedSlogan === "") {
+      setIsDeleting(false);
+      setSloganIdx((prev) => (prev + 1) % slogans.length);
+    } else {
+      timer = setTimeout(() => {
+        setDisplayedSlogan(prev => 
+          isDeleting ? fullText.substring(0, prev.length - 1) : fullText.substring(0, prev.length + 1)
+        );
+      }, typeSpeed);
+    }
+    return () => clearTimeout(timer);
+  }, [displayedSlogan, isDeleting, sloganIdx]);
+
   // Load local storage connections if present
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -451,9 +480,7 @@ export default function InteractiveDashboard() {
       justifyContent: 'space-between', fontFamily: font, zIndex: 10
     }}>
       <button onClick={() => setView('landing')} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-        <div style={{ background: D.grad, borderRadius: '10px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(8,145,178,0.5)' }}>
-          <Zap size={16} color="white" />
-        </div>
+        <img src="/logo.png" alt="FocusOps Logo" style={{ height: '36px', width: 'auto', objectFit: 'contain' }} />
         <span style={{ fontSize: '18px', fontWeight: 900, background: D.gradText, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-0.3px' }}>FocusOps</span>
       </button>
 
@@ -562,9 +589,10 @@ export default function InteractiveDashboard() {
           <div style={{ padding: '64px 36px 80px', maxWidth: '1100px', margin: '0 auto', boxSizing: 'border-box' }}>
             {/* Hero */}
             <div style={{ textAlign: 'center', marginBottom: '64px' }}>
-              <motion.div initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4 }}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: isDark ? 'rgba(8,145,178,0.14)' : 'rgba(8,145,178,0.08)', border: `1px solid ${isDark ? 'rgba(8,145,178,0.3)' : 'rgba(8,145,178,0.2)'}`, color: D.accent, borderRadius: '99px', padding: '8px 20px', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '28px' }}>
-                <Zap size={13}/> FocusOps Notification Prioritizer
+              {/* Logo Image above heading */}
+              <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}
+                style={{ marginBottom: '20px', display: 'flex', justifyContent: 'center' }}>
+                <img src="/logo.png" alt="FocusOps Logo" style={{ height: '96px', width: 'auto', objectFit: 'contain' }} />
               </motion.div>
 
               <motion.h1 initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.6, ease: [0.16,1,0.3,1] }}
@@ -572,10 +600,24 @@ export default function InteractiveDashboard() {
                 Triage the Noise.<br/>Focus on what Matters.
               </motion.h1>
 
-              <motion.p initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28, duration: 0.5 }}
-                style={{ fontSize: '17px', color: D.muted, lineHeight: 1.72, maxWidth: '560px', margin: '0 auto 40px' }}>
-                Employees lose hours managing notifications across Slack, Jira, GitHub, Gmail, and Calendar.
-                FocusOps context-awarely groups alerts by urgency — critical tasks never get buried.
+              {/* Typewriter animation for the slogan */}
+              <div style={{ minHeight: '54px', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '28px' }}>
+                <p style={{ fontSize: '18px', fontWeight: 600, color: D.muted, fontFamily: font, margin: 0, display: 'flex', alignItems: 'center', gap: '2px', textAlign: 'center', maxWidth: '640px', lineHeight: 1.5 }}>
+                  {displayedSlogan}
+                  <span style={{ display: 'inline-block', width: '3px', height: '18px', background: D.accent, animation: 'blink 0.8s infinite' }} />
+                </p>
+              </div>
+              <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes blink {
+                  0%, 100% { opacity: 1; }
+                  50% { opacity: 0; }
+                }
+              `}} />
+
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35, duration: 0.5 }}
+                style={{ fontSize: '15px', color: D.muted, opacity: 0.85, lineHeight: 1.6, maxWidth: '600px', margin: '0 auto 40px' }}>
+                Managing notifications across Slack, Jira, GitHub, Gmail, and Calendar can be overwhelming.
+                FocusOps utilizes local context parsing to securely structure your inbox, so you can work uninterrupted.
               </motion.p>
 
               <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42 }}>
@@ -587,12 +629,12 @@ export default function InteractiveDashboard() {
               </motion.div>
             </div>
 
-            {/* Integration cards */}
+            {/* Integration cards (Larger dimensions) */}
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.52 }}
               style={{ textAlign: 'center', fontSize: '11px', fontWeight: 800, color: D.muted, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '18px' }}>
               Connected Integrations
             </motion.p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: '14px', marginBottom: '64px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: '18px', marginBottom: '64px' }}>
               {CARDS.map((card, i) => {
                 const active = connectedSources[card.key] === true;
                 return (
@@ -600,19 +642,19 @@ export default function InteractiveDashboard() {
                     initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.56 + i * 0.08, ease: [0.16,1,0.3,1] }}
                     whileHover={{ y: -5, boxShadow: '0 16px 40px rgba(8,145,178,0.18)' }}
-                    style={{ background: D.surface, backdropFilter: 'blur(12px)', border: `1.5px solid ${active ? card.color + '38' : D.border}`, borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: D.shadow, transition: 'border-color 0.2s, box-shadow 0.2s' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ background: card.color + '16', color: card.color, borderRadius: '11px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${card.color}22` }}>{card.icon}</div>
-                      <span style={{ fontWeight: 800, fontSize: '15px' }}>{card.label}</span>
+                    style={{ background: D.surface, backdropFilter: 'blur(12px)', border: `1.5px solid ${active ? card.color + '38' : D.border}`, borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: D.shadow, transition: 'border-color 0.2s, box-shadow 0.2s' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ background: card.color + '16', color: card.color, borderRadius: '11px', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${card.color}22` }}>{card.icon}</div>
+                      <span style={{ fontWeight: 800, fontSize: '17px' }}>{card.label}</span>
                     </div>
                     {active ? (
                       <button onClick={() => triggerDisconnect(card.key)}
-                        style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', width: '100%', justifyContent: 'center' }}>
+                        style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', width: '100%', justifyContent: 'center' }}>
                         Disconnect
                       </button>
                     ) : (
                       <button onClick={() => triggerConnect(card.key, card.label)}
-                        style={{ background: D.grad, color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', width: '100%', justifyContent: 'center' }}>
+                        style={{ background: D.grad, color: 'white', border: 'none', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', width: '100%', justifyContent: 'center' }}>
                         Connect
                       </button>
                     )}
@@ -622,35 +664,76 @@ export default function InteractiveDashboard() {
             </div>
 
             {/* Before / After Comparison */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px', margin: '48px 0 64px' }}>
-              <div style={{ background: D.surface, border: `1px solid ${D.border}`, borderRadius: '20px', padding: '28px', opacity: 0.65, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 800, color: D.muted }}>Unsorted Inbox (Raw Noise)</span>
-                  <span style={{ fontSize: '12px', background: 'rgba(0,0,0,0.1)', padding: '4px 10px', borderRadius: '99px', fontWeight: 700 }}>23 alerts</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '32px', margin: '64px 0' }}>
+              
+              {/* Left Column: Noise */}
+              <div style={{ background: D.surface, border: `1px solid ${D.border}`, borderRadius: '24px', padding: '36px', opacity: 0.7, display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: D.shadow }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h3 style={{ fontSize: '18px', fontWeight: 800, margin: 0, color: D.text }}>Unsorted Inbox (Raw Noise)</h3>
+                    <p style={{ fontSize: '12px', color: D.muted, margin: '4px 0 0' }}>Drowning in continuous notifications</p>
+                  </div>
+                  <span style={{ fontSize: '12px', background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', padding: '6px 12px', borderRadius: '99px', fontWeight: 700, border: `1px solid ${D.border}` }}>23 alerts</span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {['Slack update: Hey team just wanted to check...', 'GitHub alert: Push on master branch...', 'Gmail: Weekly newsletter of dev updates...', 'Jira: FOC-12 modified by manager...'].map((txt, index) => (
-                    <div key={index} style={{ border: `1px solid ${D.border}`, padding: '12px', borderRadius: '10px', fontSize: '12px', color: D.muted }}>{txt}</div>
-                  ))}
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {[
+                    { source: 'slack', sender: 'Dev-Alerts Bot', title: 'prod-database-backup failed to execute in 300s', snippet: 'Timeout waiting for replication confirmation. Process exited with error code 12.' },
+                    { source: 'github', sender: 'GitHub Actions', title: '[PR #402] Build Failed on branch main', snippet: 'Lints failed on pages/api.tsx line 42: max-depth exceeded.' },
+                    { source: 'gmail', sender: 'Weekly Newsletter', title: 'Google Cloud Platform Dev Newsletter', snippet: 'Top updates: Serverless v3 improvements, new storage tiers, security bulletins...' },
+                    { source: 'jira', sender: 'Product Owner', title: 'FOC-12: Update user onboarding styling configuration', snippet: 'Please update the landing page padding to match the Figma specification...' },
+                    { source: 'slack', sender: 'General Channel', title: 'lunch-group: Pizza ordering details for Friday', snippet: 'We are ordering from Dominos. Put your preferences in the Google Sheet link...' }
+                  ].map((item, index) => {
+                    const src = getSource(item.source);
+                    return (
+                      <div key={index} style={{ border: `1px solid ${D.border}`, padding: '16px', borderRadius: '12px', background: isDark ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: src.color, fontWeight: 'bold' }}>{src.icon} {src.label}</span>
+                          <span style={{ fontSize: '11px', color: D.muted }}>{item.sender}</span>
+                        </div>
+                        <h4 style={{ fontSize: '13px', margin: 0, fontWeight: 700 }}>{item.title}</h4>
+                        <p style={{ fontSize: '11px', color: D.muted, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.snippet}</p>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              <div style={{ background: D.surface, border: `2px solid ${D.accent}55`, borderRadius: '20px', padding: '28px', boxShadow: D.shadow }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 800, color: D.accent, display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={14}/> FocusOps Triage (Actionable)</span>
-                  <span style={{ fontSize: '12px', background: D.accent + '22', color: D.accent, padding: '4px 10px', borderRadius: '99px', fontWeight: 700 }}>2 urgent</span>
+              {/* Right Column: Priortized Triage */}
+              <div style={{ background: D.surface, border: `2.5px solid ${D.accent}88`, borderRadius: '24px', padding: '36px', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 20px 50px rgba(8,145,178,0.2)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h3 style={{ fontSize: '18px', fontWeight: 900, margin: 0, background: D.gradText, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', display: 'flex', alignItems: 'center', gap: '8px' }}><Sparkles size={18}/> FocusOps Triage</h3>
+                    <p style={{ fontSize: '12px', color: D.accent, margin: '4px 0 0', fontWeight: 700 }}>AI Agent Prioritized Action Feed</p>
+                  </div>
+                  <span style={{ fontSize: '12px', background: D.accent + '22', color: D.accent, padding: '6px 12px', borderRadius: '99px', fontWeight: 800, border: `1px solid ${D.accent}33` }}>2 urgent prioritized</span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ border: `1.5px solid #ef444455`, padding: '12px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.05)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#ef4444', fontWeight: 700, marginBottom: '4px' }}><span>🔴 Urgent Now</span><span>Google Calendar</span></div>
-                    <div style={{ fontSize: '13px', fontWeight: 800 }}>Project Sync in 15 mins</div>
-                  </div>
-                  <div style={{ border: `1.5px solid #ef444455`, padding: '12px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.05)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#ef4444', fontWeight: 700, marginBottom: '4px' }}><span>🔴 Urgent Now</span><span>Jira Ticket</span></div>
-                    <div style={{ fontSize: '13px', fontWeight: 800 }}>FOC-105: Fix auth token leak (Due today)</div>
-                  </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {[
+                    { source: 'slack', tier: 'urgent_now', sender: 'Dev-Alerts Bot', title: 'prod-database-backup failed to execute in 300s', reason: 'High critical server error: production database failure detected.' },
+                    { source: 'jira', tier: 'urgent_now', sender: 'Security Scanner', title: 'FOC-105: Fix auth token leak (Due today)', reason: 'Security ticket marked high-priority with target due date of today.' },
+                    { source: 'github', tier: 'normal', sender: 'GitHub Actions', title: '[PR #402] Build Failed on branch main', reason: 'Normal priority: Main build failure. Immediate action recommended to restore pipeline.' }
+                  ].map((item, index) => {
+                    const src = getSource(item.source);
+                    const tier = getTier(item.tier, isDark);
+                    return (
+                      <div key={index} style={{ border: `1.5px solid ${tier.border}`, padding: '18px', borderRadius: '14px', background: tier.bg, display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: D.shadow }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: src.color + '16', color: src.color, border: `1px solid ${src.color}28`, padding: '3px 8px', borderRadius: '99px', fontSize: '10px', fontWeight: 'bold' }}>{src.icon} {src.label}</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: tier.bg, color: tier.text, border: `1px solid ${tier.border}`, padding: '3px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 'bold' }}>{tier.icon} {tier.label}</span>
+                        </div>
+                        <h4 style={{ fontSize: '14px', margin: 0, fontWeight: 800, lineHeight: 1.3 }}>{item.title}</h4>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: D.muted, borderTop: `1px solid ${tier.border}`, paddingTop: '8px', marginTop: '2px' }}>
+                          <Lightbulb size={11} style={{ flexShrink: 0 }}/>
+                          <span><strong>Agent Logic:</strong> {item.reason}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
+
             </div>
 
             {/* How it Works - Powered by MCP */}
