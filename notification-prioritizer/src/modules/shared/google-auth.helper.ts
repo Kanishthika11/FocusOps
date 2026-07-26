@@ -199,17 +199,17 @@ The user is asking a question about their notifications. Answer clearly, directl
 CRITICAL INSTRUCTION: If the user asks an irrelevant question that is not about their notifications, workspace tasks, or FocusOps logic (for example, asking general knowledge questions like 'what is the capital of france' or other off-topic prompts), you MUST reply exactly: 'im your focus agent i can only help with your notifications and worksapce tasks.'
 
 FocusOps Triage & Prioritization Rules:
-- Tier 1: "urgent_now" (🔴) - Immediate attention required:
+- Tier 1: "urgent_now" - Immediate attention required:
   * Google Calendar meetings starting within 60 minutes.
   * Jira tasks assigned to you that are due today.
   * GitHub Action build/CI failures on the main branch.
   * Direct messages/mentions matching active project ("FocusOps") with key collaborators.
   * Critical PagerDuty alerts.
-- Tier 2: "normal" (🟡) - Important updates but not blockers:
+- Tier 2: "normal" - Important updates but not blockers:
   * Slack DMs or direct @mentions.
   * Active Jira tasks assigned to you or watched by you.
   * GitHub PR review requests.
-- Tier 3: "fyi_only" (🔵) - Low-priority updates:
+- Tier 3: "fyi_only" - Low-priority updates:
   * Personal/promotional emails.
   * General public Slack channel updates (no direct mentions).
   * Standard GitHub repository pushes/commits.
@@ -232,7 +232,7 @@ ${JSON.stringify(currentNotifications.map((n: any) => ({
 
 User Question: ${userQuestion}
 
-Helpful Assistant Answer (Use markdown formatting, highlight keys, list matches/explanations clearly):
+Helpful Assistant Answer (Do NOT use markdown like asterisks or hashes. Do NOT use emojis. Format as neat points using plain text spacing.):
 `;
                 replyText = await queryLLM(
                   "You are a helpful notifications prioritized AI Assistant. Keep answers concise. If off-topic, reply exactly: 'im your focus agent i can only help with your notifications and worksapce tasks.'",
@@ -247,25 +247,25 @@ Helpful Assistant Answer (Use markdown formatting, highlight keys, list matches/
             if (!replyText) {
               const cleaned = userQuestion.toLowerCase().trim();
 
-              // Check for logic explanation queries
+// Check for logic explanation queries
               if (cleaned.includes('how') && (cleaned.includes('prioritize') || cleaned.includes('logic') || cleaned.includes('work') || cleaned.includes('done') || cleaned.includes('triage'))) {
-                replyText = `### 🧠 FocusOps Prioritization Logic\n\n` +
+                replyText = `FocusOps Prioritization Logic\n\n` +
                   `I classify your notifications into three priority tiers based on context:\n\n` +
-                  `1. 🔴 **Urgent Now**: Items requiring immediate attention:\n` +
-                  `   * Google Calendar meetings starting within **60 minutes**.\n` +
-                  `   * Jira tasks assigned to you that are **due today**.\n` +
-                  `   * GitHub build/CI failures on the **main** branch.\n` +
-                  `   * Mentions/channels matching active project & key collaborators.\n` +
-                  `   * Critical PagerDuty alerts.\n\n` +
-                  `2. 🟡 **Normal**: Important updates but not immediate blockers:\n` +
-                  `   * Slack Direct Messages (DMs) or direct @mentions.\n` +
-                  `   * Active Jira tasks assigned to you or watched by you.\n` +
-                  `   * GitHub PR review requests.\n\n` +
-                  `3. 🔵 **FYI Only**: Low-priority updates that can wait:\n` +
-                  `   * Personal/promotional emails.\n` +
-                  `   * General public Slack channel updates (no direct mention).\n` +
-                  `   * Standard GitHub commits or push activities.\n` +
-                  `   * Completed or past calendar events.`;
+                  `1. Urgent Now: Items requiring immediate attention:\n` +
+                  `   - Google Calendar meetings starting within 60 minutes.\n` +
+                  `   - Jira tasks assigned to you that are due today.\n` +
+                  `   - GitHub build/CI failures on the main branch.\n` +
+                  `   - Mentions/channels matching active project & key collaborators.\n` +
+                  `   - Critical PagerDuty alerts.\n\n` +
+                  `2. Normal: Important updates but not immediate blockers:\n` +
+                  `   - Slack Direct Messages (DMs) or direct @mentions.\n` +
+                  `   - Active Jira tasks assigned to you or watched by you.\n` +
+                  `   - GitHub PR review requests.\n\n` +
+                  `3. FYI Only: Low-priority updates that can wait:\n` +
+                  `   - Personal/promotional emails.\n` +
+                  `   - General public Slack channel updates (no direct mention).\n` +
+                  `   - Standard GitHub commits or push activities.\n` +
+                  `   - Completed or past calendar events.`;
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ text: replyText }));
                 return;

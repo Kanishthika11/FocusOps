@@ -58,6 +58,30 @@ const TIER_LIGHT: Record<string, any> = {
 };
 const getTier = (t: string, dark: boolean) => (dark ? TIER_DARK : TIER_LIGHT)[t] ?? (dark ? TIER_DARK : TIER_LIGHT).fyi_only;
 
+const TypewriterMessage = ({ text, animate }: { text: string, animate: boolean }) => {
+  const [displayedText, setDisplayedText] = useState(animate ? '' : text);
+
+  useEffect(() => {
+    if (!animate) {
+      setDisplayedText(text);
+      return;
+    }
+    let currentIndex = 0;
+    setDisplayedText('');
+    const interval = setInterval(() => {
+      if (currentIndex < text.length) {
+        setDisplayedText(prev => text.substring(0, currentIndex + 1));
+        currentIndex++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 15);
+    return () => clearInterval(interval);
+  }, [text, animate]);
+
+  return <>{displayedText}</>;
+};
+
 export default function InteractiveDashboard() {
   const theme = useTheme();
   const { getToolOutput } = useWidgetSDK();
@@ -1181,13 +1205,15 @@ export default function InteractiveDashboard() {
                   {chatHistory.map((msg, i) => (
                     <div key={i} style={{
                       alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-                      background: msg.sender === 'user' ? D.grad : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
-                      color: msg.sender === 'user' ? 'white' : D.text, padding: '10px 14px',
-                      borderRadius: msg.sender === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                      background: msg.sender === 'user' ? D.grad : 'transparent',
+                      color: msg.sender === 'user' ? 'white' : D.text, 
+                      padding: msg.sender === 'user' ? '10px 14px' : '6px 0',
+                      borderRadius: msg.sender === 'user' ? '12px 12px 2px 12px' : '0',
                       maxWidth: '85%', fontSize: '13px', lineHeight: 1.5,
-                      border: msg.sender === 'agent' ? `1px solid ${D.border}` : 'none'
+                      border: 'none',
+                      whiteSpace: 'pre-wrap'
                     }}>
-                      {msg.text}
+                      {msg.sender === 'agent' && msg.text !== '…' ? <TypewriterMessage text={msg.text} animate={i === chatHistory.length - 1} /> : msg.text}
                     </div>
                   ))}
                   <div ref={chatEndRef}/>
@@ -1298,24 +1324,37 @@ export default function InteractiveDashboard() {
             {chatHistory.length <= 1 ? (
               /* Claude Empty State Landing View */
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', minHeight: 0 }}>
-                {/* Asterisk Flower Logo + "Let's noodle" Heading */}
+                {/* Asterisk Flower Logo + "Let's Focus" Heading */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '28px' }}>
-                  <svg width="42" height="42" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2C12 2 12 8 12 12M12 12C12 16 12 22 12 22M12 12C8 12 2 12 2 12M12 12C16 12 22 12 22 12M12 12C9 9 5 5 5 5M12 12C15 15 19 19 19 19M12 12C9 15 5 19 5 19M12 12C15 9 19 5 19 5" stroke="#cc7052" strokeWidth="2.8" strokeLinecap="round"/>
-                  </svg>
-                  <span style={{ fontSize: '36px', fontFamily: '"Georgia", serif', fontWeight: '500', color: isDark ? '#e5e5e5' : '#171717', letterSpacing: '-0.5px' }}>Let's noodle</span>
+                  <span style={{ fontSize: '36px', fontFamily: font, fontWeight: '900', background: D.gradText, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-0.5px' }}>Let's Focus</span>
                 </div>
 
-                {/* Greeting */}
-                <h2 style={{ fontSize: '15px', color: D.muted, marginBottom: '24px', fontFamily: font, fontWeight: 500 }}>Hello, Kanishthika. How can I help you today?</h2>
+                {/* Quick Query Shortcuts right below the console header */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '28px', justifyContent: 'center' }}>
+                  <button onClick={() => handleQuickQuestion('What is urgent now?')}
+                    style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${D.border}`, color: D.text, borderRadius: '99px', padding: '8px 18px', fontSize: '12px', cursor: 'pointer', fontFamily: font, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px', transition: 'border-color 0.2s' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = '#ef4444'} onMouseLeave={e => e.currentTarget.style.borderColor = D.border}>
+                    <AlertTriangle size={12} color="#ef4444"/> Urgent Now ({filteredUrgent})
+                  </button>
+                  <button onClick={() => handleQuickQuestion('Show normal priority notifications')}
+                    style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${D.border}`, color: D.text, borderRadius: '99px', padding: '8px 18px', fontSize: '12px', cursor: 'pointer', fontFamily: font, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px', transition: 'border-color 0.2s' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = '#f59e0b'} onMouseLeave={e => e.currentTarget.style.borderColor = D.border}>
+                    <Clock size={12} color="#f59e0b"/> Normal ({filteredNormal})
+                  </button>
+                  <button onClick={() => handleQuickQuestion('Show FYI notifications')}
+                    style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${D.border}`, color: D.text, borderRadius: '99px', padding: '8px 18px', fontSize: '12px', cursor: 'pointer', fontFamily: font, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px', transition: 'border-color 0.2s' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = '#22c55e'} onMouseLeave={e => e.currentTarget.style.borderColor = D.border}>
+                    <Info size={12} color="#22c55e"/> FYI Only ({filteredFyi})
+                  </button>
+                </div>
 
-                {/* Claude-styled Premium Input Card */}
-                <div style={{ width: '100%', maxWidth: '680px', background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', border: `1.5px solid ${D.border}`, borderRadius: '24px', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
+                {/* Claude-styled Premium Input Card (Fixed within agent window boundary) */}
+                <div style={{ width: '100%', maxWidth: '800px', boxSizing: 'border-box', background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', border: `1.5px solid ${D.border}`, borderRadius: '24px', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
                   
                   {/* Top Input Row */}
                   <textarea value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
                     placeholder="Ask the prioritizer agent..." rows={2}
-                    style={{ width: '100%', background: 'transparent', border: 'none', resize: 'none', fontSize: '15px', color: D.text, outline: 'none', fontFamily: font, lineHeight: 1.5, padding: 0 }}
+                    style={{ width: '100%', boxSizing: 'border-box', background: 'transparent', border: 'none', resize: 'none', fontSize: '15px', color: D.text, outline: 'none', fontFamily: font, lineHeight: 1.5, padding: 0 }}
                   />
 
                   {/* Bottom Action Controls Row */}
@@ -1326,17 +1365,8 @@ export default function InteractiveDashboard() {
                       <Plus size={20}/>
                     </button>
 
-                    {/* Right Controls: Model select, Mic, Wave, Send */}
+                    {/* Right Controls: Send only */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                      <div style={{ fontSize: '12px', color: D.muted, fontWeight: 600, border: `1px solid ${D.border}`, borderRadius: '99px', padding: '4px 12px', background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        Sonnet 5 Medium <span style={{ fontSize: '9px', opacity: 0.7 }}>▼</span>
-                      </div>
-                      <button style={{ background: 'none', border: 'none', color: D.muted, cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}>
-                        <Mic size={16}/>
-                      </button>
-                      <button style={{ background: 'none', border: 'none', color: D.muted, cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}>
-                        <Volume2 size={16}/>
-                      </button>
                       <button onClick={handleSendMessage} style={{ background: D.grad, color: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(8,145,178,0.3)', transition: 'transform 0.2s' }}
                         onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
                         <ArrowRight size={15}/>
@@ -1346,24 +1376,6 @@ export default function InteractiveDashboard() {
 
                 </div>
 
-                {/* Quick Query Shortcuts right below the console input */}
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '24px', justifyContent: 'center' }}>
-                  <button onClick={() => handleQuickQuestion('What is urgent now?')}
-                    style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${D.border}`, color: D.text, borderRadius: '99px', padding: '8px 18px', fontSize: '12px', cursor: 'pointer', fontFamily: font, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px', transition: 'border-color 0.2s' }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = '#ef4444'} onMouseLeave={e => e.currentTarget.style.borderColor = D.border}>
-                    <AlertTriangle size={12} color="#ef4444"/> Urgent Now ({filteredUrgent})
-                  </button>
-                  <button onClick={() => handleQuickQuestion('Show normal priority notifications')}
-                    style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${D.border}`, color: D.text, borderRadius: '99px', padding: '8px 18px', fontSize: '12px', cursor: 'pointer', fontFamily: font, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px', transition: 'border-color 0.2s' }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = '#f59e0b'} onMouseLeave={e => e.currentTarget.style.borderColor = D.border}>
-                    <Clock size={12} color="#f59e0b"/> Normal ({filteredNormal})
-                  </button>
-                  <button onClick={() => handleQuickQuestion('Show FYI notifications')}
-                    style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${D.border}`, color: D.text, borderRadius: '99px', padding: '8px 18px', fontSize: '12px', cursor: 'pointer', fontFamily: font, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px', transition: 'border-color 0.2s' }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = '#22c55e'} onMouseLeave={e => e.currentTarget.style.borderColor = D.border}>
-                    <Info size={12} color="#22c55e"/> FYI Only ({filteredFyi})
-                  </button>
-                </div>
               </div>
             ) : (
               /* Expanded Conversation Active State View */
@@ -1371,7 +1383,7 @@ export default function InteractiveDashboard() {
                 {/* Agent Header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '12px', borderBottom: `1px solid ${D.border}`, flexShrink: 0 }}>
                   <div style={{ background: D.grad, borderRadius: '10px', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(8,145,178,0.4)' }}>
-                    <Bot size={18} color="white"/>
+                    <Bot size={18} color="white" />
                   </div>
                   <div>
                     <div style={{ fontSize: '15px', fontWeight: 900 }}>FocusOps Agent</div>
@@ -1387,15 +1399,16 @@ export default function InteractiveDashboard() {
                   {chatHistory.map((msg, i) => (
                     <div key={i} style={{
                       alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-                      background: msg.sender === 'user' ? D.grad : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
-                      color: msg.sender === 'user' ? 'white' : D.text, padding: '12px 16px',
-                      borderRadius: msg.sender === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
-                      maxWidth: '80%', fontSize: '13px', lineHeight: 1.55,
-                      border: msg.sender === 'agent' ? `1px solid ${D.border}` : 'none',
+                      background: msg.sender === 'user' ? D.grad : 'transparent',
+                      color: msg.sender === 'user' ? 'white' : D.text, 
+                      padding: msg.sender === 'user' ? '12px 16px' : '6px 0',
+                      borderRadius: msg.sender === 'user' ? '14px 14px 2px 14px' : '0',
+                      maxWidth: '80%', fontSize: '14px', lineHeight: 1.55,
+                      border: 'none',
                       boxShadow: msg.sender === 'user' ? '0 3px 12px rgba(8,145,178,0.2)' : 'none',
                       whiteSpace: 'pre-wrap'
                     }}>
-                      {msg.text}
+                      {msg.sender === 'agent' && msg.text !== '…' ? <TypewriterMessage text={msg.text} animate={i === chatHistory.length - 1} /> : msg.text}
                     </div>
                   ))}
                   <div ref={chatEndRef}/>
@@ -1403,16 +1416,14 @@ export default function InteractiveDashboard() {
 
                 {/* Expanded Input Console at bottom */}
                 <div style={{ display: 'flex', gap: '8px', flexShrink: 0, paddingTop: '12px', borderTop: `1px solid ${D.border}`, flexDirection: 'column' }}>
-                  <div style={{ width: '100%', background: isDark ? 'rgba(255,255,255,0.01)' : 'rgba(0,0,0,0.01)', border: `1.5px solid ${D.border}`, borderRadius: '16px', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ width: '100%', boxSizing: 'border-box', background: isDark ? 'rgba(255,255,255,0.01)' : 'rgba(0,0,0,0.01)', border: `1.5px solid ${D.border}`, borderRadius: '16px', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <textarea value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
                       placeholder="Ask the prioritizer agent..." rows={1}
-                      style={{ width: '100%', background: 'transparent', border: 'none', resize: 'none', fontSize: '13px', color: D.text, outline: 'none', fontFamily: font, lineHeight: 1.4, padding: 0 }}
+                      style={{ width: '100%', boxSizing: 'border-box', background: 'transparent', border: 'none', resize: 'none', fontSize: '13px', color: D.text, outline: 'none', fontFamily: font, lineHeight: 1.4, padding: 0 }}
                     />
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: D.muted, padding: '2px' }}><Plus size={16}/></button>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '10px', color: D.muted, border: `1px solid ${D.border}`, borderRadius: '8px', padding: '2px 8px', background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>Sonnet 5</span>
-                        <button style={{ background: 'none', border: 'none', color: D.muted, cursor: 'pointer', padding: '2px' }}><Mic size={14}/></button>
                         <button onClick={handleSendMessage} style={{ background: D.grad, color: 'white', border: 'none', borderRadius: '50%', width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 6px rgba(8,145,178,0.3)' }}><ArrowRight size={13}/></button>
                       </div>
                     </div>
