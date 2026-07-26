@@ -589,12 +589,6 @@ export default function InteractiveDashboard() {
           <div style={{ padding: '64px 36px 80px', maxWidth: '1100px', margin: '0 auto', boxSizing: 'border-box' }}>
             {/* Hero */}
             <div style={{ textAlign: 'center', marginBottom: '64px' }}>
-              {/* Logo Image above heading */}
-              <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}
-                style={{ marginBottom: '20px', display: 'flex', justifyContent: 'center' }}>
-                <img src="/logo.png" alt="FocusOps Logo" style={{ height: '96px', width: 'auto', objectFit: 'contain' }} />
-              </motion.div>
-
               <motion.h1 initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.6, ease: [0.16,1,0.3,1] }}
                 style={{ fontSize: 'clamp(36px,5vw,62px)', fontWeight: 900, lineHeight: 1.08, margin: '0 0 20px', letterSpacing: '-2px', background: D.gradText, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 Triage the Noise.<br/>Focus on what Matters.
@@ -629,20 +623,23 @@ export default function InteractiveDashboard() {
               </motion.div>
             </div>
 
-            {/* Integration cards (Larger dimensions) */}
+            {/* Integration cards (5-column single-row alignment with brand gradient touch) */}
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.52 }}
               style={{ textAlign: 'center', fontSize: '11px', fontWeight: 800, color: D.muted, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '18px' }}>
               Connected Integrations
             </motion.p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: '18px', marginBottom: '64px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', marginBottom: '64px' }}>
               {CARDS.map((card, i) => {
                 const active = connectedSources[card.key] === true;
+                const cardGradient = isDark 
+                  ? `linear-gradient(135deg, ${D.surface} 0%, ${card.color}15 100%)`
+                  : `linear-gradient(135deg, ${D.surface} 0%, ${card.color}08 100%)`;
                 return (
                   <motion.div key={card.key}
                     initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.56 + i * 0.08, ease: [0.16,1,0.3,1] }}
                     whileHover={{ y: -5, boxShadow: '0 16px 40px rgba(8,145,178,0.18)' }}
-                    style={{ background: D.surface, backdropFilter: 'blur(12px)', border: `1.5px solid ${active ? card.color + '38' : D.border}`, borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: D.shadow, transition: 'border-color 0.2s, box-shadow 0.2s' }}>
+                    style={{ background: cardGradient, backdropFilter: 'blur(12px)', border: `1.5px solid ${active ? card.color + '45' : D.border}`, borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: D.shadow, transition: 'border-color 0.2s, box-shadow 0.2s' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <div style={{ background: card.color + '16', color: card.color, borderRadius: '11px', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${card.color}22` }}>{card.icon}</div>
                       <span style={{ fontWeight: 800, fontSize: '17px' }}>{card.label}</span>
