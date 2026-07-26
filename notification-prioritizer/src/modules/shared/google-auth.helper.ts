@@ -186,6 +186,8 @@ export class GoogleAuthHelper {
 You are FocusOps' Workspace Prioritizer AI Assistant.
 The user is asking a question about their notifications. Answer clearly, directly, and concisely using the notifications provided below.
 
+CRITICAL INSTRUCTION: If the user asks an irrelevant question that is not about their notifications, workspace tasks, or FocusOps logic (for example, asking general knowledge questions like 'what is the capital of france' or other off-topic prompts), you MUST reply exactly: 'im your focus agent i can only help with your notifications and worksapce tasks.'
+
 FocusOps Triage & Prioritization Rules:
 - Tier 1: "urgent_now" (🔴) - Immediate attention required:
   * Google Calendar meetings starting within 60 minutes.
@@ -223,7 +225,7 @@ User Question: ${userQuestion}
 Helpful Assistant Answer (Use markdown formatting, highlight keys, list matches/explanations clearly):
 `;
                 replyText = await queryLLM(
-                  "You are a helpful notifications prioritized AI Assistant. Keep answers concise.",
+                  "You are a helpful notifications prioritized AI Assistant. Keep answers concise. If off-topic, reply exactly: 'im your focus agent i can only help with your notifications and worksapce tasks.'",
                   prompt
                 );
               } catch (e) {
@@ -377,7 +379,7 @@ Helpful Assistant Answer (Use markdown formatting, highlight keys, list matches/
                       jiraList.map((n: any) => `* **${n.title}** (Status: ${n.rawMetadata?.status || 'Open'})`).join('\n')
                     : "No Jira tickets found.";
                 } else {
-                  replyText = "I analyzed your current feed, but could not find a specific match. You can search by ticket ID (e.g. 'FOC-1'), key terms, or check specific channels (e.g., 'What is urgent?', 'Check Slack', 'Show Jira').";
+                  replyText = "im your focus agent i can only help with your notifications and worksapce tasks.";
                 }
               }
             }
