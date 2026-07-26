@@ -36,7 +36,7 @@ export class GoogleAuthHelper {
       'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar.readonly'
     );
 
-    return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scopes}&access_type=offline&prompt=consent`;
+    return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scopes}&access_type=offline&prompt=select_account%20consent`;
   }
 
   /**
@@ -56,6 +56,16 @@ export class GoogleAuthHelper {
       if (req.method === 'OPTIONS') {
         res.writeHead(200);
         res.end();
+        return;
+      }
+
+      // Disconnect Google OAuth endpoint
+      if (url.pathname === '/api/google/disconnect') {
+        if (fs.existsSync(TOKENS_PATH)) {
+          fs.unlinkSync(TOKENS_PATH);
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok' }));
         return;
       }
 

@@ -406,6 +406,12 @@ export default function InteractiveDashboard() {
       }
       return next;
     });
+
+    if (key === 'gmail' || key === 'calendar') {
+      fetch('http://localhost:3000/api/google/disconnect')
+        .then(() => setGoogleConnected(false))
+        .catch(err => console.error("Failed to clear Google tokens:", err));
+    }
   };
 
   // Chat History Session Handlers
