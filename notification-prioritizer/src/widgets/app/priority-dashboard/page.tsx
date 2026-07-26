@@ -9,7 +9,7 @@ import {
   AlertTriangle, Lightbulb, Bot, RefreshCw, ExternalLink,
   ChevronRight, Inbox, Info, CheckCircle2, Clock,
   AlarmClock, Send, Terminal, BarChart2, PlayCircle, Filter, Check,
-  Sparkles, ArrowRight, Plus, Trash2, MessageCircle, Maximize2
+  Sparkles, ArrowRight, Plus, Trash2, MessageCircle, Maximize2, Mic, Volume2
 } from 'lucide-react';
 
 interface NotificationItem {
@@ -1292,70 +1292,150 @@ export default function InteractiveDashboard() {
 
           </div>
 
-          {/* ── CENTER COLUMN (Main Wide Agent Interface) ── */}
-          <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', background: D.surface, border: `1px solid ${D.border}`, borderRadius: '16px', padding: '18px', boxShadow: D.shadow, overflow: 'hidden' }}>
+          {/* ── CENTER COLUMN (Main Wide Agent Interface - Claude Styled Layout) ── */}
+          <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', background: D.surface, border: `1px solid ${D.border}`, borderRadius: '16px', padding: '18px', boxShadow: D.shadow, overflow: 'hidden', position: 'relative' }}>
             
-            {/* Agent Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '12px', borderBottom: `1px solid ${D.border}`, flexShrink: 0 }}>
-              <div style={{ background: D.grad, borderRadius: '10px', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(8,145,178,0.4)' }}>
-                <Bot size={18} color="white"/>
-              </div>
-              <div>
-                <div style={{ fontSize: '15px', fontWeight: 900 }}>FocusOps Agent</div>
-                <div style={{ fontSize: '11px', color: '#22c55e', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />
-                  Online · context-aware prioritizer
+            {chatHistory.length <= 1 ? (
+              /* Claude Empty State Landing View */
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', minHeight: 0 }}>
+                {/* Asterisk Flower Logo + "Let's noodle" Heading */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '28px' }}>
+                  <svg width="42" height="42" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C12 2 12 8 12 12M12 12C12 16 12 22 12 22M12 12C8 12 2 12 2 12M12 12C16 12 22 12 22 12M12 12C9 9 5 5 5 5M12 12C15 15 19 19 19 19M12 12C9 15 5 19 5 19M12 12C15 9 19 5 19 5" stroke="#cc7052" strokeWidth="2.8" strokeLinecap="round"/>
+                  </svg>
+                  <span style={{ fontSize: '36px', fontFamily: '"Georgia", serif', fontWeight: '500', color: isDark ? '#e5e5e5' : '#171717', letterSpacing: '-0.5px' }}>Let's noodle</span>
+                </div>
+
+                {/* Greeting */}
+                <h2 style={{ fontSize: '15px', color: D.muted, marginBottom: '24px', fontFamily: font, fontWeight: 500 }}>Hello, Kanishthika. How can I help you today?</h2>
+
+                {/* Claude-styled Premium Input Card */}
+                <div style={{ width: '100%', maxWidth: '680px', background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', border: `1.5px solid ${D.border}`, borderRadius: '24px', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
+                  
+                  {/* Top Input Row */}
+                  <textarea value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+                    placeholder="Ask the prioritizer agent..." rows={2}
+                    style={{ width: '100%', background: 'transparent', border: 'none', resize: 'none', fontSize: '15px', color: D.text, outline: 'none', fontFamily: font, lineHeight: 1.5, padding: 0 }}
+                  />
+
+                  {/* Bottom Action Controls Row */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    {/* Left: Plus Sign */}
+                    <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: D.muted, padding: '4px', display: 'flex', alignItems: 'center', transition: 'color 0.2s' }}
+                      onMouseEnter={e => e.currentTarget.style.color = D.accent} onMouseLeave={e => e.currentTarget.style.color = D.muted}>
+                      <Plus size={20}/>
+                    </button>
+
+                    {/* Right Controls: Model select, Mic, Wave, Send */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <div style={{ fontSize: '12px', color: D.muted, fontWeight: 600, border: `1px solid ${D.border}`, borderRadius: '99px', padding: '4px 12px', background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        Sonnet 5 Medium <span style={{ fontSize: '9px', opacity: 0.7 }}>▼</span>
+                      </div>
+                      <button style={{ background: 'none', border: 'none', color: D.muted, cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}>
+                        <Mic size={16}/>
+                      </button>
+                      <button style={{ background: 'none', border: 'none', color: D.muted, cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}>
+                        <Volume2 size={16}/>
+                      </button>
+                      <button onClick={handleSendMessage} style={{ background: D.grad, color: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(8,145,178,0.3)', transition: 'transform 0.2s' }}
+                        onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
+                        <ArrowRight size={15}/>
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Quick Query Shortcuts right below the console input */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '24px', justifyContent: 'center' }}>
+                  <button onClick={() => handleQuickQuestion('What is urgent now?')}
+                    style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${D.border}`, color: D.text, borderRadius: '99px', padding: '8px 18px', fontSize: '12px', cursor: 'pointer', fontFamily: font, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px', transition: 'border-color 0.2s' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = '#ef4444'} onMouseLeave={e => e.currentTarget.style.borderColor = D.border}>
+                    <AlertTriangle size={12} color="#ef4444"/> Urgent Now ({filteredUrgent})
+                  </button>
+                  <button onClick={() => handleQuickQuestion('Show normal priority notifications')}
+                    style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${D.border}`, color: D.text, borderRadius: '99px', padding: '8px 18px', fontSize: '12px', cursor: 'pointer', fontFamily: font, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px', transition: 'border-color 0.2s' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = '#f59e0b'} onMouseLeave={e => e.currentTarget.style.borderColor = D.border}>
+                    <Clock size={12} color="#f59e0b"/> Normal ({filteredNormal})
+                  </button>
+                  <button onClick={() => handleQuickQuestion('Show FYI notifications')}
+                    style={{ background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${D.border}`, color: D.text, borderRadius: '99px', padding: '8px 18px', fontSize: '12px', cursor: 'pointer', fontFamily: font, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px', transition: 'border-color 0.2s' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = '#22c55e'} onMouseLeave={e => e.currentTarget.style.borderColor = D.border}>
+                    <Info size={12} color="#22c55e"/> FYI Only ({filteredFyi})
+                  </button>
                 </div>
               </div>
-            </div>
-
-            {/* Chat message timeline */}
-            <div ref={chatBoxRef} style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px 2px', minHeight: 0 }}>
-              {chatHistory.map((msg, i) => (
-                <div key={i} style={{
-                  alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-                  background: msg.sender === 'user' ? D.grad : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
-                  color: msg.sender === 'user' ? 'white' : D.text, padding: '12px 16px',
-                  borderRadius: msg.sender === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
-                  maxWidth: '80%', fontSize: '13px', lineHeight: 1.55,
-                  border: msg.sender === 'agent' ? `1px solid ${D.border}` : 'none',
-                  boxShadow: msg.sender === 'user' ? '0 3px 12px rgba(8,145,178,0.2)' : 'none',
-                  whiteSpace: 'pre-wrap'
-                }}>
-                  {msg.text}
+            ) : (
+              /* Expanded Conversation Active State View */
+              <>
+                {/* Agent Header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '12px', borderBottom: `1px solid ${D.border}`, flexShrink: 0 }}>
+                  <div style={{ background: D.grad, borderRadius: '10px', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(8,145,178,0.4)' }}>
+                    <Bot size={18} color="white"/>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '15px', fontWeight: 900 }}>FocusOps Agent</div>
+                    <div style={{ fontSize: '11px', color: '#22c55e', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />
+                      Online · context-aware prioritizer
+                    </div>
+                  </div>
                 </div>
-              ))}
-              <div ref={chatEndRef}/>
-            </div>
 
-            {/* Chat Input controls */}
-            <div style={{ display: 'flex', gap: '8px', flexShrink: 0, paddingTop: '12px', borderTop: `1px solid ${D.border}`, flexDirection: 'column' }}>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleSendMessage(); }}
-                  placeholder="Ask the prioritizer agent..."
-                  style={{ flex: 1, background: isDark ? 'rgba(0,0,0,0.3)' : 'white', border: `1.5px solid ${D.border}`, borderRadius: '8px', padding: '12px 16px', fontSize: '13px', color: D.text, outline: 'none', fontFamily: font }}
-                />
-                <button onClick={handleSendMessage} style={{ background: D.grad, color: 'white', border: 'none', borderRadius: '8px', padding: '0 24px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', fontWeight: 'bold', boxShadow: '0 2px 8px rgba(8,145,178,0.3)' }}>
-                  <Send size={14}/> Send
-                </button>
-              </div>
+                {/* Chat message timeline */}
+                <div ref={chatBoxRef} style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px 2px', minHeight: 0 }}>
+                  {chatHistory.map((msg, i) => (
+                    <div key={i} style={{
+                      alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
+                      background: msg.sender === 'user' ? D.grad : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+                      color: msg.sender === 'user' ? 'white' : D.text, padding: '12px 16px',
+                      borderRadius: msg.sender === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
+                      maxWidth: '80%', fontSize: '13px', lineHeight: 1.55,
+                      border: msg.sender === 'agent' ? `1px solid ${D.border}` : 'none',
+                      boxShadow: msg.sender === 'user' ? '0 3px 12px rgba(8,145,178,0.2)' : 'none',
+                      whiteSpace: 'pre-wrap'
+                    }}>
+                      {msg.text}
+                    </div>
+                  ))}
+                  <div ref={chatEndRef}/>
+                </div>
 
-              {/* Bottom tag buttons showing notification stats dynamically */}
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
-                <button onClick={() => handleQuickQuestion('What is urgent now?')}
-                  style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5', borderRadius: '6px', padding: '6px 12px', fontSize: '11px', cursor: 'pointer', fontFamily: font, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <AlertTriangle size={11}/> Urgent Now {filteredUrgent}
-                </button>
-                <button onClick={() => handleQuickQuestion('Show normal priority notifications')}
-                  style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', color: '#fde68a', borderRadius: '6px', padding: '6px 12px', fontSize: '11px', cursor: 'pointer', fontFamily: font, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <Clock size={11}/> Normal {filteredNormal}
-                </button>
-                <button onClick={() => handleQuickQuestion('Show FYI notifications')}
-                  style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.22)', color: '#86efac', borderRadius: '6px', padding: '6px 12px', fontSize: '11px', cursor: 'pointer', fontFamily: font, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <Info size={11}/> FYI Only {filteredFyi}
-                </button>
-              </div>
-            </div>
+                {/* Expanded Input Console at bottom */}
+                <div style={{ display: 'flex', gap: '8px', flexShrink: 0, paddingTop: '12px', borderTop: `1px solid ${D.border}`, flexDirection: 'column' }}>
+                  <div style={{ width: '100%', background: isDark ? 'rgba(255,255,255,0.01)' : 'rgba(0,0,0,0.01)', border: `1.5px solid ${D.border}`, borderRadius: '16px', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <textarea value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+                      placeholder="Ask the prioritizer agent..." rows={1}
+                      style={{ width: '100%', background: 'transparent', border: 'none', resize: 'none', fontSize: '13px', color: D.text, outline: 'none', fontFamily: font, lineHeight: 1.4, padding: 0 }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: D.muted, padding: '2px' }}><Plus size={16}/></button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '10px', color: D.muted, border: `1px solid ${D.border}`, borderRadius: '8px', padding: '2px 8px', background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>Sonnet 5</span>
+                        <button style={{ background: 'none', border: 'none', color: D.muted, cursor: 'pointer', padding: '2px' }}><Mic size={14}/></button>
+                        <button onClick={handleSendMessage} style={{ background: D.grad, color: 'white', border: 'none', borderRadius: '50%', width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 6px rgba(8,145,178,0.3)' }}><ArrowRight size={13}/></button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tiny Quick tag buttons at the very bottom */}
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
+                    <button onClick={() => handleQuickQuestion('What is urgent now?')}
+                      style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#fca5a5', borderRadius: '6px', padding: '4px 10px', fontSize: '10px', cursor: 'pointer', fontFamily: font, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      Urgent Now ({filteredUrgent})
+                    </button>
+                    <button onClick={() => handleQuickQuestion('Show normal priority notifications')}
+                      style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.18)', color: '#fde68a', borderRadius: '6px', padding: '4px 10px', fontSize: '10px', cursor: 'pointer', fontFamily: font, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      Normal ({filteredNormal})
+                    </button>
+                    <button onClick={() => handleQuickQuestion('Show FYI notifications')}
+                      style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.16)', color: '#86efac', borderRadius: '6px', padding: '4px 10px', fontSize: '10px', cursor: 'pointer', fontFamily: font, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      FYI ({filteredFyi})
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
 
           </div>
 
